@@ -1,0 +1,50 @@
+Import-Module AWSPowerShell
+
+function Send-S3Files {
+<#
+.SYNOPSIS
+Send the files from a local path to AWS S3
+.DESCRIPTION
+The function will copy all files from a specific path to AWS S3
+.EXAMPLE
+Send-S3Files -BucketName 'backups' -Region 'sa-east-1' -AKey '####' -SKey '####' -LocalSource 'c:\temp' , 'd:\backups' 
+#>
+[CmdletBinding()]
+Param (
+[Parameter(Mandatory=$True, ValueFromPipeline=$False, HelpMessage='Name of the bucket in AWS')][string]$BucketName
+, [Parameter(Mandatory=$True, ValueFromPipeline=$False, HelpMessage='Region used in AWS')][string]$Region
+, [Parameter(Mandatory=$True, HelpMessage='AWS access key')][string]$Akey
+, [Parameter(Mandatory=$True, HelpMessage='AWS secret key')][string]$SKey
+, [Parameter(Mandatory=$True, ValueFromPipeline=$False, HelpMessage='Local machine paths')][string[]]$LocalSource
+)
+
+    process {
+
+        Initialize-AWSDefaultConfiguration -AccessKey $AKey -SecretKey $SKey -Region $region
+
+        foreach($source in $sources) {
+            Set-Location $source
+            $files = Get-ChildItem '*.*' | Select-Object -Property Name #get all files in the folder
+
+            try {
+            if(Test-S3Bucket -BucketName $bucket) {
+                foreach($file in $files) {
+                    if(!(Get-S3Object -BucketName $bucket -Key $file.Name)) {
+                        Write-Host "Copying file : $file "
+                        Write-S3Object -BucketName $bucket -File $file.Name -Key $file.Name -CannedACLName private -region $region
+                    } 
+                }
+            } Else {
+                Write-Host "The bucket $bucket does not exist."
+            }
+        } catch {
+            Write-Host "Error uploading file $file"
+            $Error
+        }
+    }
+}
+
+}
+
+
+Write-S3Object -BucketName 'acloudguru-nfl' -Key 'testImage' -File 'C:\...' -Recurse
